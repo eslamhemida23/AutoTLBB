@@ -1,0 +1,45 @@
+name: Build AutoTLBB (Windows x86)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - build/windows-x86
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install Qt 5.15.2 and MinGW 8.1 (32-bit)
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '5.15.2'
+          arch: 'win32_mingw81'
+          tools: 'tools_mingw,8.1.0-1'
+          cache: true
+
+      - name: Configure
+        shell: pwsh
+        run: qmake AutoTLBB/AutoTLBB.pro 'CONFIG+=release'
+
+      - name: Compile
+        shell: pwsh
+        run: mingw32-make -j2
+
+      - name: Bundle Qt runtime
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item AutoTLBB.exe dist/AutoTLBB.exe
+          windeployqt --release --compiler-runtime --dir dist dist/AutoTLBB.exe
+
+      - name: Upload Windows x86 build
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoTLBB-Windows-x86
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
